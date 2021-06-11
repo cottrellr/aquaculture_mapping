@@ -1,0 +1,106 @@
+---
+title: "Mapping to country and EEZ polygons"
+description: Using national aquaculture production as an example
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+Libraries and setup
+```{r, results='hide'}
+library(here)
+library(janitor)
+library(tidyverse)
+library(vroom)
+library(sf)
+library(rgdal)
+library(rnaturalearth)
+library(LaCroixColoR)
+library(RColorBrewer)
+library(rmapshaper)
+
+```
+
+Shapefiles
+```{r, results='hide'}
+
+#country polygons
+world_shp = rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+world_shp_robin <- sf::st_transform(world_shp, crs = "+proj=robin")
+world_shp_moll <- sf::st_transform(world_shp, crs = "+proj=moll")
+
+#bounding box
+bbox <- rnaturalearth::ne_download(scale = 110, type = "wgs84_bounding_box", category = "physical", returnclass = "sf")
+bbox_robin <- sf::st_transform(bbox, crs = "+proj=robin")
+bbox_moll <- sf::st_transform(bbox, crs = "+proj=moll")
+
+#eez polygons
+eez_shp <- read_sf(here("data", "shapefiles", "world_eez_LR_v11"), layer = "eez_v11_lowres") %>% 
+  filter(POL_TYPE == "200NM")
+
+eez_shp_2 <- ms_simplify(eez_shp) #the original file takes a long time to plot so simplfy for speed
+eez_robin <- sf::st_transform(eez_shp_2, crs = "+proj=robin")
+eez_moll <- sf::st_transform(eez_shp_2, crs = "+proj=moll")
+
+```
+
+Sort the aquaculture data we need for present data production
+```{r, results='hide'}
+
+#filter for present day aquaculture producers & pre 1990 countries
+
+(
+  aqua_prod <- vroom(here("data", "aquaculture_production_tidy.csv")) %>% 
+  filter(year==2017 & !is.na(quantity) & !country %in% c("Netherlands Antilles", "Un. Sov. Soc. Rep.", "Yugoslavia SFR" , "Czechoslovakia" ))
+)  
+
+#freshwater production
+fw_prod <- aqua_prod %>% 
+  filter(environment=="Freshwater") %>% 
+  group_by(iso_3c, country) %>% 
+  summarise(quantity = sum(quantity))
+
+
+#marine production
+marine_prod <- aqua_prod %>% 
+  filter(environment!="Freshwater") %>% #allows for braackish and marine waters to be accounted for
+  group_by(iso_3c, country) %>% 
+  summarise(quantity = sum(quantity)) 
+
+
+```
+
+Join production data to polygons
+```{r, results='hide'}
+
+fw_aqua_shp <- world_shp_robin %>% 
+  left_join(fw_prod, by = c("iso_a3" = "iso_3c"))
+
+
+marine_aqua_shp <- eez_robin %>% 
+  left_join(marine_prod, by = c("ISO_TER1" = "iso_3c")) %>% 
+  filter(ISO_TER1!="ATA")
+  
+
+```
+
+Map production
+```{r}
+
+ggplot()+
+  geom_sf(data = bbox_robin, fill="aliceblue", colour="grey30", size=0.2)+
+  geom_sf(data = marine_aqua_shp, aes(fill = log(quantity+1)), colour=NA, size=0.2)+
+  geom_sf(data = fw_aqua_shp, aes(fill=log(quantity+1)), colour="white", size=0.2)+
+  scale_fill_gradientn(colours = lacroix_palette("Lime", type = "continuous"),
+                       na.value = "grey70")+
+  theme_void()+
+  theme(legend.position = "bottom",
+        legend.title = element_text(size=10),
+        legend.text = element_text(size=9))+
+  guides(fill = guide_colorbar(title = "log Production (tonnes)", title.position = "top", title.hjust = 0.5, barwidth = 9, barheight = 0.5, units="cm"))+
+  ggsave(here("figures", "fw_marine_aquaculture_map.pdf"), device = "pdf", dpi=600, width = 18, height = 12, units = "cm")
+
+
+```
+

@@ -1,0 +1,73 @@
+---
+title: "Aquaculture production data tidying"
+output: html_document
+---
+
+libraries
+```{r}
+
+library(here)
+library(janitor)
+library(tidyverse)
+library(vroom)
+library(countrycode)
+
+```
+
+Directories
+
+```{r}
+
+source(here("source", "directories.R"))
+
+```
+
+Import unprocessed aquaculture data
+```{r}
+
+(
+  aqua_prod_raw <- vroom(file.path(dir_seafood, "aqua-prod-raw.csv")) %>% 
+  clean_names() %>% 
+  rename(country= country_country,
+         species = species_asfis_species,
+         area = aquaculture_area_fao_major_fishing_area,
+         environment = environment_environment)
+)
+
+#remove X from column names with years
+names(aqua_prod_raw)[6:73] <- substring(names(aqua_prod_raw)[6:73],2)
+
+#sorts country coding to deal with non-UTF characters that country code depends on
+Encoding(aqua_prod_raw$country) <- "latin1" #deals with the non-UTF
+aqua_prod_raw$country <- iconv(aqua_prod_raw$country, "latin1", "UTF-8",sub='')
+
+```
+
+Switch to long format,adapt values based on flags and add country codes
+
+```{r}
+#Sort the symbols in values out
+## "..." = data unavailable
+## " " = data not separately available
+## "-" = nil or zero
+## "0 0" = more than zero but less than half the unit used
+## F = FAO estimate from available sources of information
+
+
+aqua_prod_tidy <- aqua_prod_raw %>% 
+  pivot_longer(names_to = "year", values_to = "quantity", -c(country, species, area, environment, unit)) %>% 
+  mutate(iso_3c = countrycode(country, origin = "country.name", destination = "iso3c", warn = TRUE)) %>%
+  mutate(iso_3c = case_when(country == "Zanzibar" ~ "TZA",
+                            TRUE ~ iso_3c)) %>% 
+  mutate(quantity = case_when(quantity == "0_0" ~ "0.2",
+                              quantity %in% c("-", "...", " ") ~ "0",
+                              grepl("F", quantity) ~ gsub("F", "", quantity),
+                              TRUE ~ quantity) %>% 
+           as.numeric()) %>% 
+  filter(country != "Totals") %>% 
+  write_csv(here("data", "aquaculture_production_tidy.csv"))
+
+
+
+```
+
