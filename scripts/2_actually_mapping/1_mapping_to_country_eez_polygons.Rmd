@@ -87,12 +87,16 @@ marine_aqua_shp <- eez_robin %>%
 
 Map production
 ```{r}
+blues <- colorRampPalette(brewer.pal(n=9, name="Blues"))(200)
+
 
 ggplot()+
   geom_sf(data = bbox_robin, fill="aliceblue", colour="grey30", size=0.2)+
   geom_sf(data = marine_aqua_shp, aes(fill = log(quantity+1)), colour=NA, size=0.2)+
   geom_sf(data = fw_aqua_shp, aes(fill=log(quantity+1)), colour="white", size=0.2)+
-  scale_fill_gradientn(colours = lacroix_palette("Lime", type = "continuous"),
+  # scale_fill_gradientn(colours = lacroix_palette("Lime", type = "continuous"),
+  #                      na.value = "grey70")+
+    scale_fill_gradientn(colours = blues,
                        na.value = "grey70")+
   theme_void()+
   theme(legend.position = "bottom",
