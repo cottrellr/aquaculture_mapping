@@ -10,7 +10,7 @@ output:
 Libraries and setup
 ```{r, results='hide'}
 library(here)
-library(janitor)
+library(janitor) 
 library(tidyverse)
 library(vroom)
 library(sf)
