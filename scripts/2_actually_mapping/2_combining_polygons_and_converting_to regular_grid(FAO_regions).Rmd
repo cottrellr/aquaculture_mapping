@@ -1,0 +1,58 @@
+---
+title: "FAO regions"
+author: "Rich Cottrell"
+date: "23/03/2022"
+output: html_document
+---
+
+Libraries
+```{r}
+
+library(tidyverse)
+library(sf)
+library(here)
+library(raster)
+library(fasterize)
+
+
+fao_regions_dir <- file.path("/mnt/rdsi/raw_data/fao/fao_areas")
+
+```
+
+Import as shapefile and create a numeric version of the FAO areas data
+```{r}
+fao_regions_shp <- st_read(file.path(fao_regions_dir, "FAO_AREAS_CWP.shp")) |> 
+  mutate(F_area = F_AREA |> as.numeric())
+```
+
+Do some checks on the new numeric variable relative to the original character variable
+```{r}
+unique(fao_regions_shp$F_AREA)
+unique(fao_regions_shp$F_area)
+
+# hecking no new levels have been added in 
+
+#same length?
+length(unique(fao_regions_shp$F_AREA))==length(unique(fao_regions_shp$F_area))
+
+#same values?
+unique(fao_regions_shp$F_AREA)==unique(fao_regions_shp$F_area)
+
+#regions still seem distinct
+ggplot()+
+  geom_sf(data = fao_regions_shp, aes(fill = F_area)) # multiple subregions within each FAO region
+
+```
+
+Rasterize the data to 0.05
+```{r}
+
+r <- raster(fao_regions_shp, res = 0.5) #choose which raster base is needed for your own analysis
+
+r <- fasterize(fao_regions_shp, r, field = "F_area", fun = "first")
+
+xyz_file <- rasterToPoints(r)
+
+
+```
+
