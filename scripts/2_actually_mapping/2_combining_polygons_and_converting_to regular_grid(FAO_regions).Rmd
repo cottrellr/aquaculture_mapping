@@ -54,5 +54,9 @@ r <- fasterize(fao_regions_shp, r, field = "F_area", fun = "first")
 xyz_file <- rasterToPoints(r)
 
 
+fao_regions_shp |> filter(F_CODE!=F_AREA)
+
+fao_regions_shp$F_CODE==fao_regions_shp$F_AREA
+
 ```
 
