@@ -14,7 +14,7 @@ library(terra)
 library(sf)
 library(rnaturalearth)
 library(here)
-
+library(raster)
 
 ```
 
@@ -31,15 +31,31 @@ Now get a blank raster in the projection and resolution you want (using the defa
 
 ```{r}
 base_r <- rast(res = 1)
-values(base_r) <- 1
+terra::values(base_r) <- 1
 
 #this creates a raster with na values for the land (1 elsewhere)
-land_mask <- mask(base_r, vect(land_sf), inverse=TRUE)
+land_mask_terra <- terra::mask(base_r, vect(land_sf), inverse=TRUE)
 
 #retains 1 for land
-plot(land_mask)
+plot(land_mask_terra)
 
-writeRaster(x = land_mask, filename = here("data/landmask.tif"), overwrite = TRUE)
+writeRaster(x = land_mask_terra, filename = here("data/landmask_spatrast.tif"), overwrite = TRUE)
+
+```
+
+This time in raster format
+```{r}
+
+base_r <- raster(res = 1)
+raster::values(base_r) <- 1
+
+#this creates a raster with na values for the land (1 elsewhere)
+land_mask_raster <- raster::mask(base_r, land_sf, inverse=TRUE)
+
+plot(land_mask_raster)
+
+raster::writeRaster(x = land_mask_raster, filename = here("data/landmask_rasterlayer.tif"), overwrite = TRUE)
+
 
 ```
 
