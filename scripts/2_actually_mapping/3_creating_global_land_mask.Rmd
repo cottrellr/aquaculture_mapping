@@ -1,0 +1,45 @@
+---
+title: "Creating a global land mask raster"
+author: "Rich Cottrell"
+date: "25/10/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Libraries
+```{r, eval=TRUE, results='hide', message=FALSE,echo=TRUE}
+library(tidyverse)
+library(terra)
+library(sf)
+library(rnaturalearth)
+library(here)
+
+
+```
+
+
+First get the shapefile for the land from Natural Earth
+```{r}
+
+land_sf <- ne_countries(scale = "medium", returnclass = "sf")
+
+
+```
+
+Now get a blank raster in the projection and resolution you want (using the default wgs84 here but in 1 degree). The output raster can then be multiplied with your raster of interest to return all non-land cells. If you want to keep only land cells, replace inverse =TRUE with inverse = FALSE in the mask call. 
+
+```{r}
+base_r <- rast(res = 1)
+values(base_r) <- 1
+
+#this creates a raster with na values for the land (1 elsewhere)
+land_mask <- mask(base_r, vect(land_sf), inverse=TRUE)
+
+#retains 1 for land
+plot(land_mask)
+
+writeRaster(x = land_mask, filename = here("data/landmask.tif"), overwrite = TRUE)
+
+```
+
